@@ -10,7 +10,7 @@ const { Pool } = pkg;
 const app = express();
 const PORT = process.env.PORT || 10000;
 
-// Destination URL
+// Destination URL (SBI Card)
 const dest = process.env.DESTINATION_URL;
 if (!dest) {
   console.error("❌ DESTINATION_URL is not set. Exiting...");
@@ -83,23 +83,31 @@ app.get(["/", "/r", "/redirect"], async (req, res) => {
     }
   }
 
-  // Fallback mode → use local counter
+  // Fallback counter
   if (!campaign) {
     fallbackCounter++;
     campaign = `${prefix}${String(fallbackCounter).padStart(2, "0")}`;
   }
 
-  const u = new URL(dest);
-  u.searchParams.set("utm_campaign", campaign);
+  try {
+    // Create URL object
+    const u = new URL(dest);
 
-  console.log({
-    ts: new Date().toISOString(),
-    utm_campaign: campaign,
-    ip: req.headers["x-forwarded-for"] || req.ip,
-    ua: req.headers["user-agent"]
-  });
+    // Only GEMID1 changes dynamically
+    u.searchParams.set("GEMID1", campaign);
 
-  res.redirect(302, u.toString());
+    console.log({
+      ts: new Date().toISOString(),
+      GEMID1: campaign,
+      ip: req.headers["x-forwarded-for"] || req.ip,
+      ua: req.headers["user-agent"]
+    });
+
+    res.redirect(302, u.toString());
+  } catch (err) {
+    console.error("❌ Invalid URL:", dest, err.message);
+    res.status(500).send("Invalid destination URL");
+  }
 });
 
 // Admin route
@@ -113,14 +121,14 @@ app.get("/admin/latest", async (_req, res) => {
         [prefix]
       );
       return res.send(
-        `Current utm_campaign = ${prefix}${String(result.rows[0].value).padStart(2, "0")}`
+        `Current GEMID1 = ${prefix}${String(result.rows[0].value).padStart(2, "0")}`
       );
     } catch (err) {
       return res.send("⚠️ Error fetching counter: " + err.message);
     }
   } else {
     return res.send(
-      `⚠️ DB not available. Current fallback utm_campaign = ${prefix}${String(fallbackCounter).padStart(2, "0")}`
+      `⚠️ DB not available. Current fallback GEMID1 = ${prefix}${String(fallbackCounter).padStart(2, "0")}`
     );
   }
 });
@@ -130,44 +138,3 @@ app.listen(PORT, async () => {
   await initDB();
   console.log(`🚀 Listening on port ${PORT}`);
 });
-// Inside your redirect endpoint
-app.get(["/", "/r", "/redirect"], async (req, res) => {
-  const prefix = process.env.CLICK_PREFIX || "Rn_card";
-  let campaign;
-
-  if (dbAvailable) {
-    try {
-      const result = await pool.query(
-        `UPDATE counters SET value = value + 1 WHERE name=$1 RETURNING value`,
-        [prefix]
-      );
-      const count = result.rows[0].value;
-      campaign = `${prefix}${String(count).padStart(2, "0")}`;
-    } catch (err) {
-      console.error("⚠️ DB error, switching to fallback:", err.message);
-      dbAvailable = false;
-    }
-  }
-
-  // Fallback counter
-  if (!campaign) {
-    fallbackCounter++;
-    campaign = `${prefix}${String(fallbackCounter).padStart(2, "0")}`;
-  }
-
-  // Original URL
-  const u = new URL(dest);
-
-  // Update only GEMID1 dynamically
-  u.searchParams.set("GEMID1", campaign);
-
-  console.log({
-    ts: new Date().toISOString(),
-    GEMID1: campaign,
-    ip: req.headers["x-forwarded-for"] || req.ip,
-    ua: req.headers["user-agent"]
-  });
-
-  res.redirect(302, u.toString());
-});
-
