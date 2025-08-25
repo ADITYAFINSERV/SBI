@@ -1,7 +1,7 @@
 {
-  "name": "utm-redirector",
+  "name": "utm-gemid-redirector",
   "version": "1.0.0",
-  "description": "Redirect service with unique utm_campaign IDs",
+  "description": "Redirect service with dynamic GEMID1",
   "main": "server.js",
   "type": "module",
   "scripts": {
