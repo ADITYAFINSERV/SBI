@@ -7,8 +7,9 @@ services:
     startCommand: "node server.js"
     envVars:
       - key: DESTINATION_URL
-        value: "https://www.idfcfirstbank.com/credit-card/ntb-diy/apply?utm_source=Partner&utm_medium=Cards_Hub"
+        value: "https://www.sbicard.com/corecards/?CHN=OMLG&GEMID1=Rn_Card&GEMID2=LGM11P"
       - key: CLICK_PREFIX
         value: "Rn_card"
       - key: DATABASE_URL
         sync: false  # You must set this manually if you use Render PostgreSQL
+
