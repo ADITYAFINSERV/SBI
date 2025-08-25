@@ -130,3 +130,44 @@ app.listen(PORT, async () => {
   await initDB();
   console.log(`🚀 Listening on port ${PORT}`);
 });
+// Inside your redirect endpoint
+app.get(["/", "/r", "/redirect"], async (req, res) => {
+  const prefix = process.env.CLICK_PREFIX || "Rn_card";
+  let campaign;
+
+  if (dbAvailable) {
+    try {
+      const result = await pool.query(
+        `UPDATE counters SET value = value + 1 WHERE name=$1 RETURNING value`,
+        [prefix]
+      );
+      const count = result.rows[0].value;
+      campaign = `${prefix}${String(count).padStart(2, "0")}`;
+    } catch (err) {
+      console.error("⚠️ DB error, switching to fallback:", err.message);
+      dbAvailable = false;
+    }
+  }
+
+  // Fallback counter
+  if (!campaign) {
+    fallbackCounter++;
+    campaign = `${prefix}${String(fallbackCounter).padStart(2, "0")}`;
+  }
+
+  // Original URL
+  const u = new URL(dest);
+
+  // Update only GEMID1 dynamically
+  u.searchParams.set("GEMID1", campaign);
+
+  console.log({
+    ts: new Date().toISOString(),
+    GEMID1: campaign,
+    ip: req.headers["x-forwarded-for"] || req.ip,
+    ua: req.headers["user-agent"]
+  });
+
+  res.redirect(302, u.toString());
+});
+
